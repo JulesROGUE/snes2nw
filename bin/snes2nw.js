@@ -16,6 +16,7 @@ const crypto = require('crypto');
 const readline = require('readline');
 const { spawnSync } = require('child_process');
 const { Core, PAGE } = require('../lib/core');
+const flash2 = require('../lib/flash2');
 const png = require('../lib/png');
 const { play } = require('../lib/train');
 
@@ -37,7 +38,9 @@ Options :
   --seeds <n>         nombre de parties automatiques (défaut 4)
   --add               compléter le pack existant au lieu de repartir de zéro
   --out <fichier>     pack à écrire (défaut : à côté de la ROM, extension .pack)
-  --flash-kb <n>      place en mémoire flash pour le pack (défaut 2300)
+  --flash-kb <n>      place en mémoire flash pour le pack (défaut 2500 : zone des applis d'une N0110, moins l'appli)
+  --flash2-kb <n>     place dans la zone des applis de l'autre moitié de la flash, pour la seconde partie
+                      d'un jeu trop gros (défaut 2560 ; 0 = ne jamais y écrire, quitte à n'installer qu'une partie du jeu)
   --ram-kb <n>        mémoire vive laissée aux applis par la calculatrice (défaut 149, mesuré sur N0110)
   --apu <0-3>         force la réponse du faux processeur audio
   --frameskip <n>     images non dessinées entre deux images dessinées (défaut : automatique)
@@ -52,8 +55,8 @@ function fail(message) {
 }
 
 function parseArgs(argv) {
-  const opts = { _: [], auto: 3600, seeds: 4, flashKb: 2300, ramKb: 149, apu: null, frameskip: null };
-  const numeric = { '--auto': 'auto', '--seeds': 'seeds', '--flash-kb': 'flashKb', '--ram-kb': 'ramKb', '--apu': 'apu', '--frameskip': 'frameskip' };
+  const opts = { _: [], auto: 3600, seeds: 4, flashKb: 2500, flash2Kb: 2560, ramKb: 149, apu: null, frameskip: null };
+  const numeric = { '--auto': 'auto', '--seeds': 'seeds', '--flash-kb': 'flashKb', '--flash2-kb': 'flash2Kb', '--ram-kb': 'ramKb', '--apu': 'apu', '--frameskip': 'frameskip' };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (numeric[a]) {
@@ -124,28 +127,68 @@ function nwlinkCommand() {
 async function install(packFile, opts) {
   const nwa = opts.nwa || path.join(ROOT, 'runtime', 'nwsnes.nwa');
   if (!fs.existsSync(nwa)) fail(`appli introuvable : ${nwa}`);
-  const [cmd, base] = nwlinkCommand();
-  const args = packFile ? [...base, 'install-nwa', '--external-data', packFile, nwa] : [...base, 'install-nwa', nwa];
-  const manual = `  ${path.basename(cmd)} ${args.map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(' ')}`;
+  // a game in two parts: the second one goes to the other half of the flash
+  let twoParts = null;
+  if (packFile) {
+    try {
+      twoParts = flash2.splitPack(fs.readFileSync(packFile), opts.core || new Core()).ext;
+    } catch (e) {
+      fail(e.message);
+    }
+  }
+  const quote = (a) => (/\s/.test(a) ? `"${a}"` : a);
+  let cmd, args, manual;
+  if (twoParts) {
+    if (!flash2.nwlinkDir()) fail('nwlink est introuvable : lancez « npm install » dans le dossier de snes2nw, puis recommencez.');
+    cmd = process.execPath;
+    args = [path.join(ROOT, 'lib', 'flash2-runner.js'), packFile, nwa];
+    manual = `  snes2nw install ${quote(packFile)}`;
+  } else {
+    const [c, base] = nwlinkCommand();
+    cmd = c;
+    args = packFile ? [...base, 'install-nwa', '--external-data', packFile, nwa] : [...base, 'install-nwa', nwa];
+    manual = `  ${path.basename(cmd)} ${args.map(quote).join(' ')}`;
+  }
   console.log('\nInstallation sur la calculatrice');
   console.log('  Branchez la calculatrice en USB, allumée, et fermez l\'onglet my.numworks.com s\'il est ouvert.');
   console.log('  Attention : cette installation remplace les applis externes déjà présentes sur la calculatrice.');
+  if (twoParts) {
+    console.log(`\n  Ce jeu s'installe en deux parties. La seconde (${kb(twoParts.length)}) est écrite dans la zone des applis de`);
+    console.log('  l\'AUTRE moitié de la mémoire flash, celle qui sert de secours aux mises à jour de NumWorks :');
+    console.log('   - c\'est en dehors de ce que NumWorks prévoit pour les applis. Le système de secours qui s\'y trouve');
+    console.log('     n\'est pas touché, ni ses réglages : seule sa zone d\'applis est écrite ;');
+    console.log('   - les restes d\'anciennes applis externes qui s\'y trouvent (invisibles) sont effacés ;');
+    console.log('   - une mise à jour de la calculatrice fera disparaître le jeu : il suffira de relancer snes2nw ;');
+    console.log('   - si la calculatrice refuse cette écriture, snes2nw s\'arrête là, sans toucher aux applis en place ;');
+    console.log('   - cette écriture n\'a encore été confirmée sur aucune calculatrice. Au pire, NumWorks fournit une');
+    console.log('     procédure de récupération qui réinstalle tout le système : https://www.numworks.com/support/connect/rescue');
+  }
   if (!opts.yes) {
     if (!process.stdin.isTTY) {
       console.log('  Pas de terminal interactif : installation non lancée. Commande à exécuter :\n' + manual);
       return false;
     }
-    const answer = await ask('  Installer maintenant ? [o/N] ');
+    const answer = await ask(twoParts ? '  Installer maintenant, seconde partie comprise ? [o/N] ' : '  Installer maintenant ? [o/N] ');
     if (answer !== 'o' && answer !== 'oui' && answer !== 'y') {
       console.log('  Installation annulée. Pour la faire plus tard :\n' + manual);
       return false;
     }
   }
   const r = spawnSync(cmd, args, { stdio: 'inherit' });
+  if (twoParts && r.status === 3) {
+    // the second part could not be written; the runner said why, and nothing else was written
+    console.log('\n  Le jeu peut encore s\'installer sans l\'autre moitié de la flash, en version partielle (seulement');
+    console.log('  ce qui a été joué ici) : relancez la préparation avec « --flash2-kb 0 ».');
+    process.exitCode = 2;
+    return false;
+  }
   if (r.error || r.status !== 0) {
-    console.log('\n  L\'installation a échoué (calculatrice non détectée ?). Autre méthode : sur https://my.numworks.com/apps,');
-    console.log(`  ajoutez le fichier ${nwa}`);
-    if (packFile) console.log(`  et donnez-lui comme fichier de données ${packFile}`);
+    console.log('\n  L\'installation a échoué (calculatrice non détectée ?).');
+    if (!twoParts) {
+      console.log('  Autre méthode : sur https://my.numworks.com/apps,');
+      console.log(`  ajoutez le fichier ${nwa}`);
+      if (packFile) console.log(`  et donnez-lui comme fichier de données ${packFile}`);
+    }
     process.exitCode = 2;
     return false;
   }
@@ -211,17 +254,25 @@ async function main() {
   describe(info, sha1);
 
   const flashBytes = opts.flashKb * 1024;
+  const flash2Bytes = opts.flash2Kb * 1024;
   const problems = [];
   if (info.coprocessor) problems.push(`la cartouche contient une puce supplémentaire (${info.coprocessor}) qui n'est pas émulée`);
   if (problems.length) {
     console.log('\nCe jeu ne peut pas fonctionner : ' + problems.join(' ; ') + '.');
     process.exit(infoOnly ? 0 : 1);
   }
-  // A ROM bigger than the flash: only the part of it that is read while the
-  // game is played here goes into the pack.
-  const partial = info.romSize + 64 * 1024 > flashBytes;
-  if (partial) {
-    console.log(`\nCe jeu est trop gros pour la calculatrice : sa ROM fait ${kb(info.romSize)}, la place en flash ${opts.flashKb} Ko.`);
+  // A ROM bigger than the app area goes in two parts, the second one in the
+  // app area of the other half of the flash. Bigger still (or if that half
+  // is not to be used): only the part of the ROM that is read while the game
+  // is played here goes into the pack.
+  const tooBig = info.romSize + 64 * 1024 > flashBytes;
+  const partial = tooBig && info.romSize + 64 * 1024 > flashBytes + flash2Bytes;
+  if (tooBig && !partial) {
+    console.log(`\nCe jeu est trop gros pour la zone des applis de la calculatrice : ROM de ${kb(info.romSize)}, zone de ${opts.flashKb} Ko.`);
+    console.log('Il sera installé en entier, mais en deux parties : la seconde va dans la zone des applis de l\'autre');
+    console.log('moitié de la mémoire flash (celle des mises à jour). L\'installation vous demandera votre accord.');
+  } else if (partial) {
+    console.log(`\nCe jeu est trop gros pour la calculatrice : sa ROM fait ${kb(info.romSize)}, la place en flash ${opts.flashKb + opts.flash2Kb} Ko.`);
     console.log('Seule la partie du jeu jouée pendant l\'essai sera installée (ROM partielle). Sur la calculatrice,');
     console.log('le jeu s\'arrêtera avec un message dès qu\'il sortira de ce qui a été joué ici.');
     if (!opts.play) console.log('Utilisez « --play » et jouez vous-même le passage voulu : des touches au hasard ne vont pas loin.');
@@ -271,16 +322,21 @@ async function main() {
   }
 
   // ---- 2. le pack : ROM + dictionnaire de pages
-  const pack = core.buildPack(flashBytes, apuMode, frameSkip);
+  const pack = core.buildPack(flashBytes, apuMode, frameSkip, flash2Bytes);
   fs.writeFileSync(outFile, pack.bytes);
   const shotFile = outFile.replace(/\.pack$/, '') + '-apercu.png';
   fs.writeFileSync(shotFile, png.encode(runs[0].shot, 2));
   console.log(`\nPack écrit : ${outFile} (${kb(pack.bytes.length)})`);
   console.log(`  dictionnaire : ${pack.dictPages} pages de 256 octets, dont ${pack.inRom} retrouvées telles quelles dans la ROM` +
     (pack.leftOut ? ` ; ${pack.leftOut} pages n'ont pas trouvé de place` : ''));
+  if (pack.extBytes) {
+    console.log(`  en deux parties : ${kb(pack.mainBytes)} avec l'appli, ${kb(pack.extBytes)} pour l'autre moitié de la flash`);
+  }
   if (pack.romBlocksPacked < pack.romBlocks) {
     console.log(`  ROM partielle : ${kb(pack.romBlocksPacked * 4096)} sur ${kb(pack.romBlocks * 4096)} ` +
       `(${kb(pack.romBlocksRead * 4096)} lus pendant l'essai, le reste de la place va aux morceaux voisins)`);
+  } else if (pack.extBytes) {
+    console.log('  ROM complète.');
   }
   console.log(`  aperçu de la dernière image : ${shotFile}`);
 
@@ -325,7 +381,7 @@ async function main() {
     console.log(`\nPas d'installation demandée. Plus tard : snes2nw install "${outFile}"`);
     return;
   }
-  await install(outFile, opts);
+  await install(outFile, { ...opts, core });
 }
 
 main().catch((e) => fail(e && e.message ? e.message : String(e)));

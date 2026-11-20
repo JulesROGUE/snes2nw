@@ -1,11 +1,29 @@
 {
   "name": "snes2nw",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Prépare un jeu SNES pour la calculatrice NumWorks (appli nwsnes) et l'installe",
   "license": "MIT",
-  "bin": { "snes2nw": "bin/snes2nw.js" },
-  "files": ["bin", "lib", "core", "runtime", "profiles", "web", "test", "README.md", "LICENSE"],
-  "scripts": { "test": "node test/run.js" },
-  "engines": { "node": ">=18" },
-  "dependencies": { "nwlink": "1.0.0" }
+  "bin": {
+    "snes2nw": "bin/snes2nw.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "core",
+    "runtime",
+    "profiles",
+    "web",
+    "test",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node test/run.js && node test/flash2.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "nwlink": "1.0.0"
+  }
 }

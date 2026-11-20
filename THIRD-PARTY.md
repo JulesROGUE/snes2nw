@@ -11,4 +11,7 @@ snes2nw is distributed under the MIT license (see `LICENSE`).
   at https://github.com/WebAssembly/wasi-libc.
 - `test/nwsnes-test.sfc` is the original test ROM of the nwsnes project (MIT).
 - The installation step runs NumWorks' `nwlink` tool, fetched from npm as a
-  dependency; it is not part of this repository.
+  dependency; it is not part of this repository. For a game in two parts,
+  `lib/flash2.js` loads the installed copy of nwlink with one extra call
+  slipped in before the app is written; this is done in memory at load time,
+  the copy on disk is not modified and none of its code is reproduced here.
