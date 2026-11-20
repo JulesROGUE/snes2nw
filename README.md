@@ -2,7 +2,7 @@
 
 Prépare un jeu SNES pour la calculatrice **NumWorks** et l'installe, en une commande. Il fonctionne avec l'appli **nwsnes** (dépôt séparé), dont une version compilée est fournie ici.
 
-> **État : version 0.3, expérimentale.** La préparation, l'installation par USB et l'appli fonctionnent sur une vraie N0110 pour un jeu qui tient dans la zone des applis (Super Mario World). L'installation **en deux parties** des jeux plus gros, qui écrit dans l'autre moitié de la mémoire flash, **n'a pas encore été essayée sur une vraie calculatrice** : seulement sur PC, contre une calculatrice simulée.
+> **État : version 0.3, expérimentale.** La préparation, l'installation par USB et l'appli fonctionnent sur une vraie N0110 pour un jeu qui tient dans la zone des applis (Super Mario World). L'installation **en deux parties** des jeux plus gros, qui écrit dans l'autre moitié de la mémoire flash, a réussi sur cette même N0110 (système 25.2.0) ; elle n'a été essayée sur aucun autre modèle ni aucune autre version du système.
 
 ```
 snes2nw mon-jeu.sfc --play
@@ -105,7 +105,7 @@ Pour un jeu trop gros, snes2nw coupe le pack en deux. La première partie est in
 Ce qu'il faut savoir avant d'accepter :
 
 - **C'est en dehors de ce que NumWorks prévoit pour les applis.** snes2nw n'écrit que dans la zone d'applis de l'autre moitié : ni dans son système, ni dans son dernier secteur (les réglages). Il vérifie d'abord que la calculatrice déclare elle-même cette zone inscriptible, relit tout ce qu'il a écrit, et n'installe l'appli qu'ensuite.
-- **Ce n'est pas encore confirmé sur une vraie calculatrice.** Le système déclare l'autre moitié inscriptible par USB (c'est dans son code source publié), mais le noyau, lui, n'est pas publié. S'il refuse, snes2nw s'arrête sans toucher aux applis en place, et le jeu peut encore s'installer en version partielle avec `--flash2-kb 0`.
+- **C'est confirmé sur une seule calculatrice** : une N0110 avec le système 25.2.0. Le système déclare l'autre moitié inscriptible par USB (c'est dans son code source publié), mais le noyau, lui, n'est pas publié : un autre modèle ou une autre version peut refuser. snes2nw s'arrête alors sans toucher aux applis en place, et le jeu peut encore s'installer en version partielle avec `--flash2-kb 0`.
 - **Une mise à jour de la calculatrice efface le jeu**, puisqu'elle écrit dans cette moitié. Il suffit de relancer `snes2nw install jeu.pack`.
 - Les restes d'anciennes applis externes qui se trouvent dans cette zone (invisibles) sont effacés.
 - En dernier recours, NumWorks fournit une [procédure de récupération](https://www.numworks.com/support/connect/rescue) qui réinstalle tout le système.

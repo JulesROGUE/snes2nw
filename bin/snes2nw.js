@@ -160,8 +160,9 @@ async function install(packFile, opts) {
     console.log('   - les restes d\'anciennes applis externes qui s\'y trouvent (invisibles) sont effacés ;');
     console.log('   - une mise à jour de la calculatrice fera disparaître le jeu : il suffira de relancer snes2nw ;');
     console.log('   - si la calculatrice refuse cette écriture, snes2nw s\'arrête là, sans toucher aux applis en place ;');
-    console.log('   - cette écriture n\'a encore été confirmée sur aucune calculatrice. Au pire, NumWorks fournit une');
-    console.log('     procédure de récupération qui réinstalle tout le système : https://www.numworks.com/support/connect/rescue');
+    console.log('   - cette écriture a été confirmée sur une N0110 (système 25.2.0), pas sur d\'autres modèles ou versions.');
+    console.log('     Au pire, NumWorks fournit une procédure de récupération qui réinstalle tout le système :');
+    console.log('     https://www.numworks.com/support/connect/rescue');
   }
   if (!opts.yes) {
     if (!process.stdin.isTTY) {
