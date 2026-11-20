@@ -1,6 +1,6 @@
 {
   "name": "snes2nw",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Prépare un jeu SNES pour la calculatrice NumWorks (appli nwsnes) et l'installe",
   "license": "MIT",
   "bin": { "snes2nw": "bin/snes2nw.js" },

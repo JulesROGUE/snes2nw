@@ -57,7 +57,7 @@ node bin/snes2nw.js chemin\vers\mon-jeu.sfc --play
 | `--seeds <n>` | nombre de parties automatiques (défaut 4) |
 | `--out <fichier>` | nom du pack (défaut : à côté de la ROM, extension `.pack`) |
 | `--flash-kb <n>` | place en flash pour le pack (défaut 2300) |
-| `--ram-kb <n>` | mémoire vive que la calculatrice laisse aux applis (défaut 100) |
+| `--ram-kb <n>` | mémoire vive que la calculatrice laisse aux applis (défaut 149, mesuré sur une N0110) |
 | `--no-install` | ne pas installer |
 | `--yes` | ne pas demander confirmation avant d'installer |
 | `--apu <0-3>`, `--frameskip <n>` | réglages avancés, voir plus bas |
@@ -71,15 +71,17 @@ Les parties automatiques suffisent pour un essai, mais des touches au hasard ne 
 ### Le verdict
 
 ```
-Vérification avec 100 Ko de mémoire vive (dont 92 Ko pour le jeu)
+Vérification avec 149 Ko de mémoire vive (dont 117 Ko pour le jeu)
   votre partie : tient en mémoire
   mesure du strict nécessaire… 41 Ko (sans dictionnaire il en faudrait au moins 150 Ko ; …)
-Verdict : ça tient, avec 51 Ko de marge pour les passages non joués pendant l'essai.
+Verdict : ça tient, avec 76 Ko de marge pour les passages non joués pendant l'essai.
 ```
 
 (Chiffres d'illustration.) Le verdict porte sur la **mémoire**, pour ce qui a été joué. Il ne dit rien de la vitesse, qui ne se mesure que sur la calculatrice : dans l'appli, la touche `0` affiche les images par seconde et la vitesse en %.
 
-Les 100 Ko sont une valeur courante mais pas garantie : l'appli affiche la mémoire réellement disponible à son démarrage. Si elle diffère, relancez avec `--ram-kb`.
+Les 149 Ko ont été mesurés sur une N0110 ; l'appli elle-même en garde une trentaine. Ce n'est pas garanti sur un autre modèle ou une autre version du système : l'appli affiche la mémoire réellement disponible à son démarrage (« RAM totale »). Si elle diffère, relancez avec `--ram-kb`.
+
+`node bin/snes2nw.js diag` installe à la place une petite appli de mesure (mémoire, vitesse de la flash et des caches) : utile pour comprendre une lenteur, elle remplace l'appli SNES jusqu'à la prochaine installation.
 
 ### L'installation
 

@@ -20,7 +20,7 @@ const png = require('../lib/png');
 const { play } = require('../lib/train');
 
 const ROOT = path.join(__dirname, '..');
-const APP_RAM = 8192; // what the calculator app itself keeps (its .bss is about 8 KB)
+const APP_RAM = 32 * 1024; // what the calculator app itself keeps (its .data and .bss, about 30 KB)
 
 const HELP = `snes2nw - prépare un jeu SNES pour la NumWorks (appli nwsnes) et l'installe
 
@@ -28,6 +28,7 @@ Usage :
   snes2nw <jeu.sfc> [options]     analyse, partie d'essai, pack, vérification, installation
   snes2nw info <jeu.sfc>          décrit la ROM et dit si elle est prise en charge
   snes2nw install <jeu.pack>      installe un pack déjà préparé
+  snes2nw diag                    installe une petite appli qui mesure la calculatrice
 
 Options :
   --play              jouer soi-même dans le navigateur (recommandé pour un vrai jeu)
@@ -36,7 +37,7 @@ Options :
   --add               compléter le pack existant au lieu de repartir de zéro
   --out <fichier>     pack à écrire (défaut : à côté de la ROM, extension .pack)
   --flash-kb <n>      place en mémoire flash pour le pack (défaut 2300)
-  --ram-kb <n>        mémoire vive laissée aux applis par la calculatrice (défaut 100)
+  --ram-kb <n>        mémoire vive laissée aux applis par la calculatrice (défaut 149, mesuré sur N0110)
   --apu <0-3>         force la réponse du faux processeur audio
   --frameskip <n>     images non dessinées entre deux images dessinées (défaut : automatique)
   --no-install        ne pas installer, écrire seulement le pack
@@ -50,7 +51,7 @@ function fail(message) {
 }
 
 function parseArgs(argv) {
-  const opts = { _: [], auto: 3600, seeds: 4, flashKb: 2300, ramKb: 100, apu: null, frameskip: null };
+  const opts = { _: [], auto: 3600, seeds: 4, flashKb: 2300, ramKb: 149, apu: null, frameskip: null };
   const numeric = { '--auto': 'auto', '--seeds': 'seeds', '--flash-kb': 'flashKb', '--ram-kb': 'ramKb', '--apu': 'apu', '--frameskip': 'frameskip' };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -118,11 +119,12 @@ function nwlinkCommand() {
   }
 }
 
+// packFile null: an app that needs no data file (the diagnostic app)
 async function install(packFile, opts) {
   const nwa = opts.nwa || path.join(ROOT, 'runtime', 'nwsnes.nwa');
   if (!fs.existsSync(nwa)) fail(`appli introuvable : ${nwa}`);
   const [cmd, base] = nwlinkCommand();
-  const args = [...base, 'install-nwa', '--external-data', packFile, nwa];
+  const args = packFile ? [...base, 'install-nwa', '--external-data', packFile, nwa] : [...base, 'install-nwa', nwa];
   const manual = `  ${path.basename(cmd)} ${args.map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(' ')}`;
   console.log('\nInstallation sur la calculatrice');
   console.log('  Branchez la calculatrice en USB, allumée, et fermez l\'onglet my.numworks.com s\'il est ouvert.');
@@ -142,10 +144,11 @@ async function install(packFile, opts) {
   if (r.error || r.status !== 0) {
     console.log('\n  L\'installation a échoué (calculatrice non détectée ?). Autre méthode : sur https://my.numworks.com/apps,');
     console.log(`  ajoutez le fichier ${nwa}`);
-    console.log(`  et donnez-lui comme fichier de données ${packFile}`);
+    if (packFile) console.log(`  et donnez-lui comme fichier de données ${packFile}`);
+    process.exitCode = 2;
     return false;
   }
-  console.log('  Installé. Sur la calculatrice : menu principal, appli « SNES ».');
+  console.log(`  Installé. Sur la calculatrice : menu principal, appli « ${packFile ? 'SNES' : 'Diag'} ».`);
   return true;
 }
 
@@ -179,6 +182,12 @@ async function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (opts._.length === 0) { console.log(HELP); process.exit(0); }
 
+  if (opts._[0] === 'diag') {
+    console.log('Appli de mesure « Diag » : elle chronomètre la calculatrice (mémoire flash, cache, code en RAM).');
+    console.log('Lancez-la sur la calculatrice et notez les nombres affichés.');
+    await install(null, { ...opts, nwa: opts.nwa || path.join(ROOT, 'runtime', 'nwsnes-diag.nwa') });
+    return;
+  }
   if (opts._[0] === 'install') {
     if (!opts._[1]) fail('indiquez le pack à installer');
     if (!fs.existsSync(opts._[1])) fail(`fichier introuvable : ${opts._[1]}`);
