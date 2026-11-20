@@ -149,6 +149,32 @@ async function install(packFile, opts) {
   return true;
 }
 
+// Smallest RAM pool (in pages, to within 2 KB) that plays the run through.
+// A pass that tidies memory after every frame gives a floor; the pool is then
+// grown from there until the run completes, so few replays are needed.
+function measureNeed(core, pack, run) {
+  const MAX = 896;
+  core.session(pack, 0);
+  core.run(run.frames, run.seed, 0, { collectEach: true });
+  const floor = Math.max(1, core.stats().peakPages);
+  const fits = (pages) => {
+    process.stdout.write('.');
+    core.session(pack, pages);
+    return core.run(run.frames, run.seed, 0) === run.frames;
+  };
+  let lo = floor - 1, hi = MAX;
+  for (let step = 8; ; step *= 2) {
+    const pages = Math.min(MAX, floor + step);
+    if (pages >= MAX || fits(pages)) { hi = pages; break; }
+    lo = pages;
+  }
+  while (hi - lo > 8) {
+    const mid = (lo + hi) >> 1;
+    if (fits(mid)) hi = mid; else lo = mid;
+  }
+  return hi;
+}
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (opts._.length === 0) { console.log(HELP); process.exit(0); }
@@ -247,11 +273,11 @@ async function main() {
   // how much is really needed, on the longest run
   const longest = runs.reduce((a, b) => (b.frames > a.frames ? b : a));
   core.setMovie(longest.movie);
-  process.stdout.write('  mesure du strict nécessaire…');
-  const minPages = core.minPool(loaded, longest.frames, longest.seed);
+  process.stdout.write('  mesure du strict nécessaire');
+  const minPages = measureNeed(core, loaded, longest);
   core.setMovie(null);
   const without = Math.max(...runs.map((r) => r.rawPages));
-  console.log(` ${kb(minPages * PAGE)} (sans dictionnaire il en faudrait au moins ${kb(without * PAGE)} ; une vraie SNES y consacre 192 Ko)`);
+  console.log(` environ ${kb(minPages * PAGE)} (sans dictionnaire il en faudrait au moins ${kb(without * PAGE)} ; une vraie SNES y consacre 192 Ko)`);
   const margin = poolPages - minPages;
   if (!allOk || margin < 0) {
     console.log('\nVerdict : ne tient pas dans cette mémoire. Essayez « --play » en jouant plus longtemps, ou « --add » pour compléter.');
