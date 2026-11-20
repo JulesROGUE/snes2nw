@@ -205,15 +205,21 @@ async function main() {
   const flashBytes = opts.flashKb * 1024;
   const problems = [];
   if (info.coprocessor) problems.push(`la cartouche contient une puce supplémentaire (${info.coprocessor}) qui n'est pas émulée`);
-  if (info.romSize + 64 * 1024 > flashBytes) {
-    problems.push(`la ROM (${kb(info.romSize)}) ne tient pas dans la place prévue en flash (${opts.flashKb} Ko)`);
-  }
   if (problems.length) {
     console.log('\nCe jeu ne peut pas fonctionner : ' + problems.join(' ; ') + '.');
     process.exit(infoOnly ? 0 : 1);
   }
+  // A ROM bigger than the flash: only the part of it that is read while the
+  // game is played here goes into the pack.
+  const partial = info.romSize + 64 * 1024 > flashBytes;
+  if (partial) {
+    console.log(`\nCe jeu est trop gros pour la calculatrice : sa ROM fait ${kb(info.romSize)}, la place en flash ${opts.flashKb} Ko.`);
+    console.log('Seule la partie du jeu jouée pendant l\'essai sera installée (ROM partielle). Sur la calculatrice,');
+    console.log('le jeu s\'arrêtera avec un message dès qu\'il sortira de ce qui a été joué ici.');
+    if (!opts.play) console.log('Utilisez « --play » et jouez vous-même le passage voulu : des touches au hasard ne vont pas loin.');
+  }
   if (infoOnly) {
-    console.log('\nRien ne s\'oppose à un essai : lancez « snes2nw ' + path.basename(romFile) + ' ».');
+    console.log('\n' + (partial ? 'Un essai est possible' : 'Rien ne s\'oppose à un essai') + ' : lancez « snes2nw ' + path.basename(romFile) + (partial ? ' --play' : '') + ' ».');
     return;
   }
 
@@ -264,6 +270,10 @@ async function main() {
   console.log(`\nPack écrit : ${outFile} (${kb(pack.bytes.length)})`);
   console.log(`  dictionnaire : ${pack.dictPages} pages de 256 octets, dont ${pack.inRom} retrouvées telles quelles dans la ROM` +
     (pack.leftOut ? ` ; ${pack.leftOut} pages n'ont pas trouvé de place` : ''));
+  if (pack.romBlocksPacked < pack.romBlocks) {
+    console.log(`  ROM partielle : ${kb(pack.romBlocksPacked * 4096)} sur ${kb(pack.romBlocks * 4096)} ` +
+      `(${kb(pack.romBlocksRead * 4096)} lus pendant l'essai, le reste de la place va aux morceaux voisins)`);
+  }
   console.log(`  aperçu de la dernière image : ${shotFile}`);
 
   // ---- 3. vérification : même jeu, avec la mémoire de la calculatrice
@@ -277,7 +287,8 @@ async function main() {
     const done = core.run(run.frames, run.seed, 0);
     const ok = done === run.frames;
     allOk = allOk && ok;
-    console.log(`  ${run.label} : ` + (ok ? 'tient en mémoire' : `mémoire pleine après ${Math.round(done / fps)} s de jeu`));
+    const why = ok ? '' : (core.stats().romMissing ? 'morceau de ROM absent du pack' : 'mémoire pleine');
+    console.log(`  ${run.label} : ` + (ok ? 'tient en mémoire' : `${why} après ${Math.round(done / fps)} s de jeu`));
   }
   // how much is really needed, on the longest run
   const longest = runs.reduce((a, b) => (b.frames > a.frames ? b : a));
@@ -296,6 +307,10 @@ async function main() {
     console.log(`\nVerdict : ça tient, avec ${kb(margin * PAGE)} de marge pour les passages non joués pendant l'essai.`);
   }
   console.log('  Ce verdict vaut pour ce qui a été joué ici, pas pour la vitesse : elle ne se mesure que sur la calculatrice.');
+  if (pack.romBlocksPacked < pack.romBlocks) {
+    console.log('  ROM partielle : la calculatrice ne pourra rejouer que ce qui a été joué ici (et ce qui en est proche).');
+    console.log('  Pour aller plus loin : « --play --add » ajoute une nouvelle partie au pack existant.');
+  }
 
   // ---- 4. installation
   if (opts.noInstall) {
