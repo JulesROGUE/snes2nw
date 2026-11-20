@@ -29,6 +29,7 @@ Usage :
   snes2nw info <jeu.sfc>          décrit la ROM et dit si elle est prise en charge
   snes2nw install <jeu.pack>      installe un pack déjà préparé
   snes2nw diag                    installe une petite appli qui mesure la calculatrice
+  snes2nw sonde                   installe une petite appli qui montre le découpage de la flash
 
 Options :
   --play              jouer soi-même dans le navigateur (recommandé pour un vrai jeu)
@@ -186,6 +187,13 @@ async function main() {
     console.log('Appli de mesure « Diag » : elle chronomètre la calculatrice (mémoire flash, cache, code en RAM).');
     console.log('Lancez-la sur la calculatrice et notez les nombres affichés.');
     await install(null, { ...opts, nwa: opts.nwa || path.join(ROOT, 'runtime', 'nwsnes-diag.nwa') });
+    return;
+  }
+  if (opts._[0] === 'sonde') {
+    console.log('Appli « Sonde » : elle montre comment la mémoire flash de la calculatrice est découpée');
+    console.log('(zone des applis, et si l\'autre moitié de la flash est lisible). Elle ne fait que lire.');
+    console.log('Lancez-la sur la calculatrice et notez ce qu\'elle affiche sur ses deux écrans.');
+    await install(null, { ...opts, nwa: opts.nwa || path.join(ROOT, 'runtime', 'nwsnes-probe.nwa') });
     return;
   }
   if (opts._[0] === 'install') {
