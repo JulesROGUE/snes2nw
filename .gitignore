@@ -1,0 +1,6 @@
+node_modules/
+*.pack
+*-apercu.png
+*.sfc
+*.smc
+!test/nwsnes-test.sfc

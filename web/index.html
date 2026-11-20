@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>snes2nw - jouer pour préparer le jeu</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #17161d; color: #e8e6ef; font: 15px/1.5 system-ui, sans-serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 20px; display: grid; grid-template-columns: minmax(0, 768px) minmax(280px, 1fr); gap: 24px; align-items: start; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  canvas { width: 100%; height: auto; aspect-ratio: 256 / 224; image-rendering: pixelated;
+           background: #000; border-radius: 6px; display: block; }
+  .side { display: grid; gap: 16px; }
+  .box { background: #211f2a; border-radius: 8px; padding: 14px 16px; }
+  .box h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 8px; color: #a9a4bd; }
+  table { border-collapse: collapse; width: 100%; }
+  td { padding: 2px 0; }
+  td:last-child { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  kbd { background: #34313f; border-radius: 4px; padding: 1px 6px; font: 13px ui-monospace, monospace; }
+  button { font: inherit; border: 0; border-radius: 6px; padding: 10px 14px; cursor: pointer; }
+  #done { background: #6c5ce7; color: #fff; font-weight: 600; }
+  #cancel { background: #34313f; color: #e8e6ef; }
+  #status { color: #a9a4bd; min-height: 1.5em; }
+  p { margin: 0 0 8px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <canvas id="screen" width="256" height="224" tabindex="0"></canvas>
+    <p id="status">Chargement…</p>
+  </div>
+  <div class="side">
+    <div class="box">
+      <h1 id="title">snes2nw</h1>
+      <p>Jouez ici aux passages que vous voulez retrouver sur la calculatrice. Tout ce que le jeu met en mémoire
+         pendant cette partie sera rangé dans la mémoire flash de la calculatrice, ce qui libère sa mémoire vive.</p>
+      <p>Plus vous explorez (niveaux, menus, écran de fin de niveau…), mieux le jeu tiendra.</p>
+    </div>
+    <div class="box">
+      <h2>Touches</h2>
+      <table id="keys"></table>
+      <p style="margin-top:8px;color:#a9a4bd">Une manette branchée fonctionne aussi.</p>
+    </div>
+    <div class="box">
+      <h2>Partie</h2>
+      <table>
+        <tr><td>Durée jouée</td><td id="time">0:00</td></tr>
+        <tr><td>Mémoire vive utilisée sans dictionnaire</td><td id="ram">-</td></tr>
+      </table>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button id="done">Terminer et préparer le jeu</button>
+      <button id="cancel">Annuler</button>
+    </div>
+  </div>
+</main>
+<script src="trainer.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "_readme": "Réglages par jeu, repérés par l'empreinte SHA-1 de la ROM (sans en-tête de copieur). Aucune donnée de jeu ici. apuMode : réponse du faux processeur audio (0 prêt, 1 écho, 2 compteur, 3 zéro ; absent = automatique). frameSkip : images non dessinées entre deux images dessinées (absent = automatique).",
+  "games": {
+    "8a9ec0e8f8c1e6dbd4b8d3ac0a1d2f3e00000000": {
+      "name": "Exemple (empreinte fictive)",
+      "apuMode": null,
+      "frameSkip": null,
+      "notes": "Copiez ce bloc pour ajouter un jeu."
+    }
+  }
+}
